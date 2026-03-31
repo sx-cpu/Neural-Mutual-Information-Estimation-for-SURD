@@ -2,4 +2,4 @@ data/
 MI_results/
 *.pyc
 *__pycache__/
-*.png
+# *.png
