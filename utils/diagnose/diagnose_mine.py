@@ -1,28 +1,29 @@
-import torch
-import numpy as np
 import os
-from torch.utils.data import DataLoader, TensorDataset
+
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from torch.utils.data import DataLoader, TensorDataset
+
 
 def plot_mi_curve(mi_list, save_path=None, title="MI estimation curve", hline=None):
-    plt.figure(figsize=(15,8))
+    plt.figure(figsize=(15, 8))
     plt.plot(mi_list, label="Estimated MI")
 
     if hline is not None:
-        plt.axhline(y=hline, color='r', linestyle='--',label='True MI')
+        plt.axhline(y=hline, color="r", linestyle="--", label="True MI")
     plt.xlabel("Training iteration")
     plt.ylabel("MI")
     plt.title(title)
     plt.legend()
     plt.grid(True)
-    
+
     if save_path is not None:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        plt.savefig(save_path, bbox_inches='tight')
-        print(f'Figure saved to {save_path}')
-    
-    plt.show()
+        plt.savefig(save_path, bbox_inches="tight")
+        print(f"Figure saved to {save_path}")
 
+    plt.show()
 
 
 def diagnose_mine(mine, X, Y, batch_size=65536, K=5, true_mi=None):
@@ -87,7 +88,7 @@ def diagnose_mine(mine, X, Y, batch_size=65536, K=5, true_mi=None):
         print("\n—— Window Buffer（micro-averaging）——")
         print(f"buffer size      = {len(t_buf)}")
         print(f"buffer t_mean    = {t_buf.mean():.6f}")
-        print(f"buffer log(et)   = {np.log(et_buf.mean()+1e-12):.6f}")
+        print(f"buffer log(et)   = {np.log(et_buf.mean() + 1e-12):.6f}")
         print(f"Window MI        = {mi_buf:.6f}")
     else:
         print("\n⚠ buffer 为空（训练可能太短）")
@@ -115,12 +116,12 @@ def diagnose_mine(mine, X, Y, batch_size=65536, K=5, true_mi=None):
     # ---------------------------------------------------------
     # (5) 绘制 T/T_marg 分布图
     # ---------------------------------------------------------
-    plt.figure(figsize=(10,4))
-    plt.subplot(1,2,1)
+    plt.figure(figsize=(10, 4))
+    plt.subplot(1, 2, 1)
     plt.hist(T_all, bins=50)
     plt.title("T distribution")
 
-    plt.subplot(1,2,2)
+    plt.subplot(1, 2, 2)
     plt.hist(Tm_all, bins=50)
     plt.title("T_marg distribution")
 

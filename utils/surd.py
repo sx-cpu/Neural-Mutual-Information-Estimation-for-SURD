@@ -1,13 +1,14 @@
-import numpy as np
-import itertools
-from typing import Dict, Tuple
-import matplotlib.colors as mcolors
 from itertools import combinations as icmb
+from typing import Dict
+
+import matplotlib.colors as mcolors
+import numpy as np
 
 
 def compute_entropy(p):
     p = p[p > 0]
     return -np.sum(p * np.log(p))
+
 
 def compute_info_leak(data, bins=50):
     """
@@ -31,7 +32,7 @@ def compute_info_leak(data, bins=50):
     # p(A)
     p_A = np.sum(p_TA, axis=0)
     # p(T|A)
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         p_T_given_A = p_TA / p_A[np.newaxis, :]
 
     # H(T)
@@ -74,7 +75,7 @@ def surd_global(MI: Dict[tuple, float], n_vars: int):
     I_S = {comb: 0.0 for comb in MI.keys() if len(comb) > 1}
 
     # ---- Step 3: Compute Redundant + Unique (only in T̃1) ----
-    T1 = T_sets[1]           # list of (comb, val)
+    T1 = T_sets[1]  # list of (comb, val)
     n1 = len(T1)
 
     # convert to arrays
@@ -93,7 +94,7 @@ def surd_global(MI: Dict[tuple, float], n_vars: int):
 
         if i < n1 - 1:
             for j in range(i, n1):
-                suffix_indices = T1_indices[j: n1]          # list of ints
+                suffix_indices = T1_indices[j:n1]  # list of ints
                 suffix_key = tuple(sorted(suffix_indices))  # canonical ordering
                 I_R[suffix_key] = diff
         else:
@@ -135,34 +136,34 @@ def surd_global(MI: Dict[tuple, float], n_vars: int):
     return I_R, I_S, MI
 
 
-def nice_print( r_, s_, mi_, leak_):
-    '''Print the normalized redundancies, unique and synergy particles'''
+def nice_print(r_, s_, mi_, leak_):
+    """Print the normalized redundancies, unique and synergy particles"""
 
     r_ = {key: value / max(mi_.values()) for key, value in r_.items()}
     s_ = {key: value / max(mi_.values()) for key, value in s_.items()}
 
-    print( '    Redundant (R):' )
+    print("    Redundant (R):")
     for k_, v_ in r_.items():
         if len(k_) > 1:
-            print( f'        {str(k_):12s}: {v_:5.4f}' )
+            print(f"        {str(k_):12s}: {v_:5.4f}")
 
-    print( '    Unique (U):' )
+    print("    Unique (U):")
     for k_, v_ in r_.items():
         if len(k_) == 1:
-            print( f'        {str(k_):12s}: {v_:5.4f}' )
+            print(f"        {str(k_):12s}: {v_:5.4f}")
 
-    print( '    Synergystic (S):' )
+    print("    Synergystic (S):")
     for k_, v_ in s_.items():
-        print( f'        {str(k_):12s}: {v_:5.4f}' )
+        print(f"        {str(k_):12s}: {v_:5.4f}")
 
-    print(f'    Information Leak: {leak_ * 100:5.2f}%')
+    print(f"    Information Leak: {leak_ * 100:5.2f}%")
 
 
 def histogram_entropy(p):
     """Compute entropy from a probability vector p."""
     p = p[p > 0]
     return -np.sum(p * np.log(p))
-    
+
 
 def compute_info_leak(Y, MI, bins=50):
     """Compute info leak = H(Y|X)/H(Y) = (H_Y - I)/H_Y"""
@@ -196,13 +197,13 @@ def plot(I_R, I_S, info_leak, axs, nvars, threshold=0):
     :param threshold: Threshold as a percentage of the maximum value to select contributions to plot
     """
     colors = {}
-    colors['redundant'] = mcolors.to_rgb('#003049')
-    colors['unique'] = mcolors.to_rgb('#d62828')
-    colors['synergistic'] = mcolors.to_rgb('#f77f00')
+    colors["redundant"] = mcolors.to_rgb("#003049")
+    colors["unique"] = mcolors.to_rgb("#d62828")
+    colors["synergistic"] = mcolors.to_rgb("#f77f00")
 
     for key, value in colors.items():
         rgb = mcolors.to_rgb(value)
-        colors[key] = tuple([c + (1-c) * 0.4 for c in rgb])
+        colors[key] = tuple([c + (1 - c) * 0.4 for c in rgb])
 
     # Generate keys and labels
     # Redundant Contributions
@@ -210,50 +211,61 @@ def plot(I_R, I_S, info_leak, axs, nvars, threshold=0):
     I_R_labels = []
     for r in range(nvars, 0, -1):
         for comb in icmb(range(1, nvars + 1), r):
-            prefix = 'U' if len(comb) == 1 else 'R'
-            I_R_keys.append(prefix + ''.join(map(str, comb)))
+            prefix = "U" if len(comb) == 1 else "R"
+            I_R_keys.append(prefix + "".join(map(str, comb)))
             I_R_labels.append(f"$\\mathrm{{{prefix}}}{{{''.join(map(str, comb))}}}$")
-    
+
     # Synergestic Contributions
-    I_S_keys = ['S' + ''.join(map(str, comb)) for r in range(2, nvars+1) for comb in icmb(range(1, nvars + 1), r)]
-    I_S_labels = [f"$\\mathrm{{S}}{{{''.join(map(str, comb))}}}$" for r in range(2, nvars+1) for comb in icmb(range(1, nvars + 1), r)]
+    I_S_keys = [
+        "S" + "".join(map(str, comb))
+        for r in range(2, nvars + 1)
+        for comb in icmb(range(1, nvars + 1), r)
+    ]
+    I_S_labels = [
+        f"$\\mathrm{{S}}{{{''.join(map(str, comb))}}}$"
+        for r in range(2, nvars + 1)
+        for comb in icmb(range(1, nvars + 1), r)
+    ]
 
     label_keys, labels = I_R_keys + I_S_keys, I_R_labels + I_S_labels
 
     # Extracting and normalizing the values of information measures
-    values = [I_R.get(tuple(map(int, key[1:])), 0) if 'U' in key or 'R' in key 
-          else I_S.get(tuple(map(int, key[1:])), 0) 
-          for key in label_keys]
+    values = [
+        I_R.get(tuple(map(int, key[1:])), 0)
+        if "U" in key or "R" in key
+        else I_S.get(tuple(map(int, key[1:])), 0)
+        for key in label_keys
+    ]
     values /= sum(values)
     max_value = max(values)
 
     # Filtering based on threshold
     labels = [label for value, label in zip(values, labels) if value >= threshold]
     values = [value for value in values if value > threshold]
-    
+
     # Plotting the bar graph of information measures
     for label, value in zip(labels, values):
-        if 'U' in label:
-            color = colors['unique']
-        elif 'S' in label:
-            color = colors['synergistic']
+        if "U" in label:
+            color = colors["unique"]
+        elif "S" in label:
+            color = colors["synergistic"]
         else:
-            color = colors['redundant']
-        axs[0].bar(label, value, color=color, edgecolor='black',linewidth=1.5)
+            color = colors["redundant"]
+        axs[0].bar(label, value, color=color, edgecolor="black", linewidth=1.5)
 
     if nvars == 2:
-        axs[0].set_box_aspect(1/2.5)
+        axs[0].set_box_aspect(1 / 2.5)
     else:
-        axs[0].set_box_aspect(1/4)
+        axs[0].set_box_aspect(1 / 4)
 
     # Plotting the information leak bar
-    axs[1].bar(' ', info_leak, color='gray', edgecolor='black')
+    axs[1].bar(" ", info_leak, color="gray", edgecolor="black")
     axs[1].set_ylim([0, 1])
-    axs[0].set_yticks([0., 1.])
-    axs[0].set_ylim([0., 1.])
+    axs[0].set_yticks([0.0, 1.0])
+    axs[0].set_ylim([0.0, 1.0])
 
     # change all spines
-    for axis in ['top','bottom','left','right']:
+    for axis in ["top", "bottom", "left", "right"]:
         axs[0].spines[axis].set_linewidth(2)
         axs[1].spines[axis].set_linewidth(2)
 
@@ -262,6 +274,7 @@ def plot(I_R, I_S, info_leak, axs, nvars, threshold=0):
     axs[1].tick_params(width=3)
 
     return dict(zip(label_keys, values))
+
 
 def plot_nlabels(I_R, I_S, info_leak, axs, nvars, nlabels=-1):
     """
@@ -274,13 +287,13 @@ def plot_nlabels(I_R, I_S, info_leak, axs, nvars, nlabels=-1):
     :param threshold: Threshold as a percentage of the maximum value to select contributions to plot
     """
     colors = {}
-    colors['redundant'] = mcolors.to_rgb('#003049')
-    colors['unique'] = mcolors.to_rgb('#d62828')
-    colors['synergistic'] = mcolors.to_rgb('#f77f00')
+    colors["redundant"] = mcolors.to_rgb("#003049")
+    colors["unique"] = mcolors.to_rgb("#d62828")
+    colors["synergistic"] = mcolors.to_rgb("#f77f00")
 
     for key, value in colors.items():
         rgb = mcolors.to_rgb(value)
-        colors[key] = tuple([c + (1-c) * 0.4 for c in rgb])
+        colors[key] = tuple([c + (1 - c) * 0.4 for c in rgb])
 
     # Generate keys and labels
     # Redundant Contributions
@@ -288,20 +301,31 @@ def plot_nlabels(I_R, I_S, info_leak, axs, nvars, nlabels=-1):
     I_R_labels = []
     for r in range(nvars, 0, -1):
         for comb in icmb(range(1, nvars + 1), r):
-            prefix = 'U' if len(comb) == 1 else 'R'
-            I_R_keys.append(prefix + ''.join(map(str, comb)))
+            prefix = "U" if len(comb) == 1 else "R"
+            I_R_keys.append(prefix + "".join(map(str, comb)))
             I_R_labels.append(f"$\\mathrm{{{prefix}}}{{{''.join(map(str, comb))}}}$")
-    
+
     # Synergestic Contributions
-    I_S_keys = ['S' + ''.join(map(str, comb)) for r in range(2, nvars+1) for comb in icmb(range(1, nvars + 1), r)]
-    I_S_labels = [f"$\\mathrm{{S}}{{{''.join(map(str, comb))}}}$" for r in range(2, nvars+1) for comb in icmb(range(1, nvars + 1), r)]
+    I_S_keys = [
+        "S" + "".join(map(str, comb))
+        for r in range(2, nvars + 1)
+        for comb in icmb(range(1, nvars + 1), r)
+    ]
+    I_S_labels = [
+        f"$\\mathrm{{S}}{{{''.join(map(str, comb))}}}$"
+        for r in range(2, nvars + 1)
+        for comb in icmb(range(1, nvars + 1), r)
+    ]
 
     label_keys, labels = I_R_keys + I_S_keys, I_R_labels + I_S_labels
 
     # Extracting and normalizing the values of information measures
-    values = [I_R.get(tuple(map(int, key[1:])), 0) if 'U' in key or 'R' in key 
-          else I_S.get(tuple(map(int, key[1:])), 0) 
-          for key in label_keys]
+    values = [
+        I_R.get(tuple(map(int, key[1:])), 0)
+        if "U" in key or "R" in key
+        else I_S.get(tuple(map(int, key[1:])), 0)
+        for key in label_keys
+    ]
     values /= sum(values)
     max_value = max(values)
 
@@ -318,27 +342,27 @@ def plot_nlabels(I_R, I_S, info_leak, axs, nvars, nlabels=-1):
     # Convert filtered arrays back to lists if necessary
     values = filtered_values_in_original_order
     labels = filtered_labels_in_original_order.tolist()
-    
+
     # Plotting the bar graph of information measures
     for label, value in zip(labels, values):
-        if 'U' in label:
-            color = colors['unique']
-        elif 'S' in label:
-            color = colors['synergistic']
+        if "U" in label:
+            color = colors["unique"]
+        elif "S" in label:
+            color = colors["synergistic"]
         else:
-            color = colors['redundant']
-        axs[0].bar(label, value, color=color, edgecolor='black',linewidth=1.5)
+            color = colors["redundant"]
+        axs[0].bar(label, value, color=color, edgecolor="black", linewidth=1.5)
 
-    axs[0].set_box_aspect(1/4)
+    axs[0].set_box_aspect(1 / 4)
 
     # Plotting the information leak bar
-    axs[1].bar(' ', info_leak, color='gray', edgecolor='black')
+    axs[1].bar(" ", info_leak, color="gray", edgecolor="black")
     axs[1].set_ylim([0, 1])
-    axs[0].set_yticks([0., 1.])
-    axs[0].set_ylim([0., 1.])
+    axs[0].set_yticks([0.0, 1.0])
+    axs[0].set_ylim([0.0, 1.0])
 
     # change all spines
-    for axis in ['top','bottom','left','right']:
+    for axis in ["top", "bottom", "left", "right"]:
         axs[0].spines[axis].set_linewidth(2)
         axs[1].spines[axis].set_linewidth(2)
 
@@ -347,4 +371,3 @@ def plot_nlabels(I_R, I_S, info_leak, axs, nvars, nlabels=-1):
     axs[1].tick_params(width=3)
 
     return dict(zip(label_keys, values))
-

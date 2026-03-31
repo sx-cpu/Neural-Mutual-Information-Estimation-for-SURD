@@ -1,7 +1,8 @@
+import random
+
 import numpy as np
 import torch
-import random
-import os
+
 
 def set_global_seed(seed):
     """Set global random seeds for reproducibility."""

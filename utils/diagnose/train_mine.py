@@ -1,10 +1,12 @@
-import torch
 import numpy as np
+import torch
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
 
-def train_mine(model_cls, X, Y, batch_size=65536, K=5, lr=1e-4, num_iters=2000, device="cuda"):
+def train_mine(
+    model_cls, X, Y, batch_size=65536, K=5, lr=1e-4, num_iters=2000, device="cuda"
+):
     """
     训练 MINE / ReMINE
     返回:
@@ -29,7 +31,6 @@ def train_mine(model_cls, X, Y, batch_size=65536, K=5, lr=1e-4, num_iters=2000, 
     iterator = iter(loader)
 
     for it in tqdm(range(num_iters)):
-
         try:
             bx, by = next(iterator)
         except:

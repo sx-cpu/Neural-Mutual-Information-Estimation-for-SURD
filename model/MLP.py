@@ -1,10 +1,10 @@
-import os
+import collections
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import TensorDataset, DataLoader
-import collections
+from torch.utils.data import DataLoader, TensorDataset
 
 
 class MineNet(nn.Module):
@@ -15,25 +15,29 @@ class MineNet(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden, hidden),
             nn.ReLU(),
-            nn.Linear(hidden,1)
+            nn.Linear(hidden, 1),
         )
+
     def forward(self, x, y):
-        xy = torch.cat([x,y], dim=1)
+        xy = torch.cat([x, y], dim=1)
         return self.model(xy)
+
 
 # assume MineNet is defined above (unchanged)
 
+
 class MINE:
-    def __init__(self,
-                 dim_x,
-                 dim_y,
-                 lr=1e-4,
-                 device='cuda',
-                 ema_rate=0.01,
-                 lambda_reg=0.1,    # ### MOD: regularization strength for ReMINE (on g = log E[e^T])
-                 C_reg=0.0,          # ### MOD: anchor target C in d(g, C); paper often uses 0 or 1 (tuneable)
-                 window_size=500     # ### MOD: window size K for micro-averaging / smoothing
-                 ):
+    def __init__(
+        self,
+        dim_x,
+        dim_y,
+        lr=1e-4,
+        device="cuda",
+        ema_rate=0.01,
+        lambda_reg=0.1,  # ### MOD: regularization strength for ReMINE (on g = log E[e^T])
+        C_reg=0.0,  # ### MOD: anchor target C in d(g, C); paper often uses 0 or 1 (tuneable)
+        window_size=500,  # ### MOD: window size K for micro-averaging / smoothing
+    ):
         self.net = MineNet(dim_x, dim_y).to(device)
         self.opt = optim.Adam(self.net.parameters(), lr=lr)
         self.device = device
@@ -49,8 +53,10 @@ class MINE:
         self.y_std = None
 
         # ReMINE hyperparams
-        self.lambda_reg = float(lambda_reg)   # strength of regularizer on g = log E[exp(T)]
-        self.C_reg = float(C_reg)             # anchor value for g
+        self.lambda_reg = float(
+            lambda_reg
+        )  # strength of regularizer on g = log E[exp(T)]
+        self.C_reg = float(C_reg)  # anchor value for g
         self.window_size = int(window_size)
 
         # ### MOD: sliding buffers for micro-averaging (store recent batch statistics)
@@ -85,6 +91,7 @@ class MINE:
     #  TRAIN: use batch-level g = log mean exp(T) for regularizer (ReMINE)
     #  and store (t_mean, et_mean) in sliding buffer for micro-averaging
     #################################################################
+
     def train(self, dataloader, epochs=20, clip_norm=1.0, print_every=1):
         """
         IMPORTANT: caller must call mine.fit_normalization(X, Y) before train().
@@ -106,12 +113,12 @@ class MINE:
                 self.opt.zero_grad()
 
                 # joint score mean
-                t = self.net(bx, by)               # shape (B,1)
-                t_mean = t.mean()                  # scalar tensor
+                t = self.net(bx, by)  # shape (B,1)
+                t_mean = t.mean()  # scalar tensor
 
                 # marginal scores (batch-wise shuffle as negative sampling for training)
                 by_marg = self.shuffle(by)
-                t_marg = self.net(bx, by_marg)     # (B,1)
+                t_marg = self.net(bx, by_marg)  # (B,1)
 
                 # batch estimate of E[exp(T_marg)]
                 # compute et_batch = mean(exp(t_marg))
@@ -125,14 +132,20 @@ class MINE:
                 if self.ma_et is None:
                     self.ma_et = et_batch.detach()
                 else:
-                    self.ma_et = (1 - self.ma_rate) * self.ma_et + self.ma_rate * et_batch.detach()
+                    self.ma_et = (
+                        1 - self.ma_rate
+                    ) * self.ma_et + self.ma_rate * et_batch.detach()
 
                 # For training objective we use the EMA-smoothed denominator (stable) for the main loss term
                 # but regularizer is applied on current batch g_batch to penalize drift of g.
-                log_et_for_loss = torch.log(self.ma_et + 1e-12)   # stable denominator for loss
+                log_et_for_loss = torch.log(
+                    self.ma_et + 1e-12
+                )  # stable denominator for loss
 
                 # ReMINE regularizer: d(g_batch, C) = (g_batch - C)^2  (L2)
-                reg = self.lambda_reg * (g_batch - self.C_reg) ** 2    ### MOD: regularize log-mean-exp
+                reg = (
+                    self.lambda_reg * (g_batch - self.C_reg) ** 2
+                )  ### MOD: regularize log-mean-exp
 
                 # final loss (we minimize negative of ReMINE objective)
                 # objective: t_mean - log_et_for_loss - lambda * (g_batch - C)^2
@@ -149,7 +162,12 @@ class MINE:
 
                 # ### MOD: push batch statistics into sliding buffer (for micro-averaging later)
                 # store CPU floats to keep memory low
-                self._stat_buffer.append( (float(t_mean.detach().cpu().item()), float(et_batch.detach().cpu().item())) )
+                self._stat_buffer.append(
+                    (
+                        float(t_mean.detach().cpu().item()),
+                        float(et_batch.detach().cpu().item()),
+                    )
+                )
 
             if ep % print_every == 0:
                 avg_mi = epoch_sum_mi / max(1, n_batches)
@@ -157,8 +175,10 @@ class MINE:
                 mi_list.append(avg_mi)
                 # loss_list.append(avg_loss.item())
 
-                print(f"Epoch {ep}/{epochs}, avg MI={avg_mi:.6f}, buffer_len={len(self._stat_buffer)}")
-        
+                print(
+                    f"Epoch {ep}/{epochs}, avg MI={avg_mi:.6f}, buffer_len={len(self._stat_buffer)}"
+                )
+
         return mi_list
 
     #################################################################
@@ -214,8 +234,10 @@ class MINE:
             with torch.no_grad():
                 for bx, _ in loader:
                     bs = bx.shape[0]
-                    y_chunk = Yp[idx:idx+bs].to(self.device)
-                    et_chunks.append(torch.exp(self.net(bx.to(self.device), y_chunk)).cpu())
+                    y_chunk = Yp[idx : idx + bs].to(self.device)
+                    et_chunks.append(
+                        torch.exp(self.net(bx.to(self.device), y_chunk)).cpu()
+                    )
                     idx += bs
             et_ks.append(float(torch.cat(et_chunks).mean().item()))
 

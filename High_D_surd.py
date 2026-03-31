@@ -10,16 +10,18 @@ Usage:
 """
 
 import math
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 
 class ConvBlock(nn.Module):
     def __init__(self, in_ch, out_ch, kernel=3, stride=2, padding=1):
         super().__init__()
-        self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=kernel, stride=stride, padding=padding)
+        self.conv = nn.Conv2d(
+            in_ch, out_ch, kernel_size=kernel, stride=stride, padding=padding
+        )
         self.bn = nn.BatchNorm2d(out_ch)
         self.act = nn.LeakyReLU(0.2, inplace=True)
 
@@ -33,18 +35,23 @@ class MINEEstimator(nn.Module):
     Architecture follows paper Fig.2 idea: conv blocks downsampling + dense layers -> scalar.
     Sizes chosen to be flexible; adjust channels / widths as needed.
     """
+
     def __init__(self, in_channels: int):
         super().__init__()
         # conv encoder: mimic 64x32xNc -> down to small spatial features
         self.enc = nn.Sequential(
-            ConvBlock(in_channels, 8, kernel=3, stride=1, padding=1),   # keep spatial, increase channels
+            ConvBlock(
+                in_channels, 8, kernel=3, stride=1, padding=1
+            ),  # keep spatial, increase channels
             ConvBlock(8, 16, kernel=3, stride=2, padding=1),  # downsample
             ConvBlock(16, 32, kernel=3, stride=2, padding=1),
             ConvBlock(32, 64, kernel=3, stride=2, padding=1),
         )
         # compute flattened size dynamically in forward (so code is flexible)
         # fully connected head (paper: 2048 -> 512 -> 32 -> scalar); we approximate similarly
-        self.fc1 = nn.Linear(64 * 8 * 4, 512)   # <--- assumes input HxW around 64x32 -> after 3x stride2 downsample -> 8x4
+        self.fc1 = nn.Linear(
+            64 * 8 * 4, 512
+        )  # <--- assumes input HxW around 64x32 -> after 3x stride2 downsample -> 8x4
         self.fc2 = nn.Linear(512, 32)
         self.fc_out = nn.Linear(32, 1)
         self.act = nn.ReLU()
@@ -52,7 +59,7 @@ class MINEEstimator(nn.Module):
         # small initialization
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.Linear)):
-                nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0.0)
 
@@ -106,12 +113,14 @@ def compute_marginal_by_shuffle(q_plus_O: torch.Tensor, q_i: torch.Tensor, devic
     return q_plus_O[idx]
 
 
-def train_mine(model: nn.Module,
-               dataloader: DataLoader,
-               optimizer: torch.optim.Optimizer,
-               device: torch.device,
-               epochs: int = 50,
-               log_every: int = 50):
+def train_mine(
+    model: nn.Module,
+    dataloader: DataLoader,
+    optimizer: torch.optim.Optimizer,
+    device: torch.device,
+    epochs: int = 50,
+    log_every: int = 50,
+):
     model.to(device)
     model.train()
     for epoch in range(epochs):
@@ -127,11 +136,13 @@ def train_mine(model: nn.Module,
             joint_input = torch.cat([q_plus_O, q_i], dim=1)  # (B, Nc, H, W)
 
             # Marginal: shuffle q_plus_O across batch
-            q_plus_O_shuffled = compute_marginal_by_shuffle(q_plus_O, q_i, device=device)
+            q_plus_O_shuffled = compute_marginal_by_shuffle(
+                q_plus_O, q_i, device=device
+            )
             marginal_input = torch.cat([q_plus_O_shuffled, q_i], dim=1)
 
             # Forward
-            g_joint = model(joint_input)      # (B,1)
+            g_joint = model(joint_input)  # (B,1)
             g_marginal = model(marginal_input)
 
             # Loss: negative DV bound
@@ -147,12 +158,14 @@ def train_mine(model: nn.Module,
             if (batch_idx + 1) % log_every == 0:
                 avg_loss = running_loss / log_every
                 avg_i = running_i / log_every
-                print(f"Epoch [{epoch+1}/{epochs}] Batch [{batch_idx+1}]  loss={avg_loss:.4f}  I_hat={avg_i:.4f}")
+                print(
+                    f"Epoch [{epoch + 1}/{epochs}] Batch [{batch_idx + 1}]  loss={avg_loss:.4f}  I_hat={avg_i:.4f}"
+                )
                 running_loss = 0.0
                 running_i = 0.0
 
         # epoch end: optionally print last avg
-        print(f"Epoch {epoch+1} finished.")
+        print(f"Epoch {epoch + 1} finished.")
 
     print("Training finished.")
 
@@ -166,6 +179,7 @@ class ExamplePairDataset(Dataset):
     Replace with your real data loader that returns the two fields as tensors.
     Shapes used here: C=1 per field, H=64, W=32 as in paper diagrams.
     """
+
     def __init__(self, n_samples=2000, H=64, W=32):
         super().__init__()
         self.n = n_samples
@@ -202,7 +216,9 @@ def example_run():
             q_plus_O = q_plus_O.to(device)
             q_i = q_i.to(device)
             joint = torch.cat([q_plus_O, q_i], dim=1)
-            shuffled = torch.cat([compute_marginal_by_shuffle(q_plus_O, q_i, device=device), q_i], dim=1)
+            shuffled = torch.cat(
+                [compute_marginal_by_shuffle(q_plus_O, q_i, device=device), q_i], dim=1
+            )
             g_j = model(joint)
             g_m = model(shuffled)
             _, i_hat = mine_loss_from_scores(g_j, g_m)
