@@ -183,7 +183,7 @@ The MINE estimator converges to the analytical mutual information value for high
 
 #### Energy Cascade
 
-![Energy Cascade Convergence](logs/energy_cascade/tar1_energycascade_(1,)_20251207_104333.png)
+![Energy Cascade Convergence](logs/energy_cascade/tar3_energycascade_example.png)
 
 Training curves show stable convergence for real-world turbulence data.
 
